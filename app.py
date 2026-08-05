@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import pandas as pd
 import streamlit as st
 
 # =========================================================
@@ -13,7 +14,7 @@ st.set_page_config(
 )
 
 # =========================================================
-# 2. 美工 CSS: 十字象限網格樣式設計 (左:右 = 1:2，左小右大)
+# 2. 美工 CSS: 十字象限網格與左右卡片樣式設計
 # =========================================================
 st.markdown(
     """
@@ -22,7 +23,7 @@ st.markdown(
 
 .quadrant-container {
     display: grid;
-    grid-template-columns: 1fr 2fr; /* 比例 1 : 2 */
+    grid-template-columns: 1fr 2fr;
     gap: 0px;
     background: #ffffff;
     border-radius: 16px;
@@ -75,13 +76,48 @@ st.markdown(
 .q-sub { font-size: 14px; color: #4A5568; font-weight: 600; }
 .q-stroke { font-size: 15px; font-weight: 700; color: #2C3E50; }
 
-.stroke-item {
-    background-color: #ffffff;
-    padding: 10px 14px;
-    border-radius: 8px;
-    border-left: 3px solid #7E57C2;
-    margin-bottom: 8px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+/* 左右透明卡片樣式 */
+.relation-card-sheng {
+    background-color: rgba(232, 245, 233, 0.65);
+    border: 1px solid #a5d6a7;
+    border-radius: 12px;
+    padding: 15px;
+    margin-top: 10px;
+    height: 100%;
+}
+
+.relation-card-ke {
+    background-color: rgba(255, 235, 238, 0.65);
+    border: 1px solid #ef9a9a;
+    border-radius: 12px;
+    padding: 15px;
+    margin-top: 10px;
+    height: 100%;
+}
+
+.card-title-sheng {
+    font-size: 16px;
+    font-weight: bold;
+    color: #2e7d32;
+    margin-bottom: 10px;
+    border-bottom: 2px solid #a5d6a7;
+    padding-bottom: 5px;
+}
+
+.card-title-ke {
+    font-size: 16px;
+    font-weight: bold;
+    color: #c62828;
+    margin-bottom: 10px;
+    border-bottom: 2px solid #ef9a9a;
+    padding-bottom: 5px;
+}
+
+.card-item {
+    font-size: 14px;
+    color: #333333;
+    padding: 6px 0;
+    border-bottom: 1px dashed rgba(0,0,0,0.08);
 }
 </style>
 """,
@@ -104,6 +140,65 @@ RIGHT_B = "163"  # 邑部 (右阝)
 WUXING_ORDER = ["木", "火", "土", "金", "水"]
 WUXING_TO_INDEX = {w: i for i, w in enumerate(WUXING_ORDER)}
 STAR_ORDER = ["比", "食", "財", "官", "印"]
+
+# 五行相生：木->火->土->金->水->木
+SHENG_MAP = {"木": "火", "火": "土", "土": "金", "金": "水", "水": "木"}
+# 五行相剋：木->土->土->水->水->火->火->金->金->木
+KE_MAP = {"木": "土", "土": "水", "水": "火", "火": "金", "金": "木"}
+
+PAIR_COMBINATIONS = [
+    ("天格", "人格"),
+    ("人格", "地格"),
+    ("人格", "外格"),
+    ("人格", "總格"),
+    ("天格", "地格"),
+    ("天格", "外格"),
+    ("天格", "總格"),
+    ("外格", "地格"),
+    ("地格", "總格"),
+    ("外格", "總格"),
+]
+
+
+def get_single_relation(elem1: str, elem2: str) -> tuple[str, str]:
+    """計算兩五行間的關係與符號表示"""
+    if elem1 == elem2:
+        return "比和", "⇄"
+    elif SHENG_MAP.get(elem1) == elem2:
+        return "相生", "➔"
+    elif SHENG_MAP.get(elem2) == elem1:
+        return "相生", "⬅"
+    elif KE_MAP.get(elem1) == elem2:
+        return "相剋", "➔"
+    else:
+        return "相剋", "⬅"
+
+
+def analyze_all_grid_relations(grid_elements: dict) -> list[dict]:
+    """完整比對五格之間兩兩的相生相剋關係"""
+    results = []
+    for g1, g2 in PAIR_COMBINATIONS:
+        e1, e2 = grid_elements[g1], grid_elements[g2]
+        rel_type, arrow = get_single_relation(e1, e2)
+
+        if rel_type == "比和":
+            desc = f"{g1}【{e1}】 ⇄ {g2}【{e2}】（同氣比和）"
+        elif arrow == "➔":
+            desc = f"{g1}【{e1}】 ➔ {g2}【{e2}】"
+        else:
+            desc = f"{g2}【{e2}】 ➔ {g1}【{e1}】"
+
+        results.append(
+            {
+                "g1": g1,
+                "g2": g2,
+                "e1": e1,
+                "e2": e2,
+                "type": rel_type,
+                "desc": desc,
+            }
+        )
+    return results
 
 
 def get_name_stroke_count(char: str) -> tuple[int, int, str]:
@@ -152,8 +247,11 @@ def get_name_stroke_count(char: str) -> tuple[int, int, str]:
             final_stroke = base_stroke + 1
             note = " (扌手部: +1劃)"
         elif rad_id == "61":
-            final_stroke = base_stroke + 1
-            note = " (忄心部: +1劃)"
+            if "忄" in char:
+                final_stroke = base_stroke + 1
+                note = " (忄心部偏旁: +1劃)"
+            else:
+                note = " (心部字本體: 原劃數不校正)"
         elif rad_id == "94":
             final_stroke = base_stroke + 1
             note = " (犭犬部: +1劃)"
@@ -172,46 +270,20 @@ def get_name_stroke_count(char: str) -> tuple[int, int, str]:
 
 def get_gan_zhi_wuxing(num: int) -> tuple[str, str]:
     tiangan_map = {
-        1: "甲",
-        2: "乙",
-        3: "丙",
-        4: "丁",
-        5: "戊",
-        6: "己",
-        7: "庚",
-        8: "辛",
-        9: "壬",
-        0: "癸",
+        1: "甲", 2: "乙", 3: "丙", 4: "丁", 5: "戊",
+        6: "己", 7: "庚", 8: "辛", 9: "壬", 0: "癸"
     }
     gan = tiangan_map[num % 10]
 
     wuxing_map = {
-        "甲": "木",
-        "乙": "木",
-        "丙": "火",
-        "丁": "火",
-        "戊": "土",
-        "己": "土",
-        "庚": "金",
-        "辛": "金",
-        "壬": "水",
-        "癸": "水",
+        "甲": "木", "乙": "木", "丙": "火", "丁": "火", "戊": "土",
+        "己": "土", "庚": "金", "辛": "金", "壬": "水", "癸": "水"
     }
     wuxing = wuxing_map[gan]
 
     dizhi_map = {
-        1: "子",
-        2: "丑",
-        3: "寅",
-        4: "卯",
-        5: "辰",
-        6: "巳",
-        7: "午",
-        8: "未",
-        9: "申",
-        10: "酉",
-        11: "戌",
-        0: "亥",
+        1: "子", 2: "丑", 3: "寅", 4: "卯", 5: "辰", 6: "巳",
+        7: "午", 8: "未", 9: "申", 10: "酉", 11: "戌", 0: "亥"
     }
     zhi = dizhi_map[num % 12]
 
@@ -257,9 +329,7 @@ def main():
         st.divider()
 
         # 計算筆劃
-        surname_strokes = [
-            get_name_stroke_count(c)[0] for c in surname
-        ]
+        surname_strokes = [get_name_stroke_count(c)[0] for c in surname]
         name_strokes = [get_name_stroke_count(c)[0] for c in given_name]
 
         s_len, n_len = len(surname_strokes), len(name_strokes)
@@ -267,42 +337,22 @@ def main():
         if s_len == 1 and n_len == 2:
             A, (B, C) = surname_strokes[0], name_strokes
             name_type, tiange, renge, dige, waige, zongge = (
-                "單姓複名",
-                A + 1,
-                A + B,
-                B + C,
-                C + 1,
-                A + B + C,
+                "單姓複名", A + 1, A + B, B + C, C + 1, A + B + C
             )
         elif s_len == 1 and n_len == 1:
             A, B = surname_strokes[0], name_strokes[0]
             name_type, tiange, renge, dige, waige, zongge = (
-                "單姓單名",
-                A + 1,
-                A + B,
-                B + 1,
-                2,
-                A + B,
+                "單姓單名", A + 1, A + B, B + 1, 2, A + B
             )
         elif s_len == 2 and n_len == 2:
             (A, B), (C, D) = surname_strokes, name_strokes
             name_type, tiange, renge, dige, waige, zongge = (
-                "複姓複名",
-                A + B,
-                B + C,
-                C + D,
-                A + D,
-                A + B + C + D,
+                "複姓複名", A + B, B + C, C + D, A + D, A + B + C + D
             )
         elif s_len == 2 and n_len == 1:
             (A, B), C = surname_strokes, name_strokes[0]
             name_type, tiange, renge, dige, waige, zongge = (
-                "複姓單名",
-                A + B,
-                B + C,
-                C + 1,
-                A + 1,
-                A + B + C,
+                "複姓單名", A + B, B + C, C + 1, A + 1, A + B + C
             )
         else:
             st.error("⚠️ 目前僅支援 2~4 字的姓名組合。")
@@ -315,9 +365,17 @@ def main():
         waige_str, w_wx = get_gan_zhi_wuxing(waige)
         zongge_str, z_wx = get_gan_zhi_wuxing(zongge)
 
+        grid_elements = {
+            "天格": t_wx,
+            "人格": r_wx,
+            "地格": d_wx,
+            "外格": w_wx,
+            "總格": z_wx,
+        }
+
         tab1, tab2 = st.tabs(["📊 十字五格五星盤", "✍️ 筆劃解析明細"])
 
-        # 分頁一：渲染 1:2 寬度比例，且人格不顯示比(主星)
+        # 分頁一：十字盤
         with tab1:
             st.subheader(f"👤 {full_name}（{name_type}）")
 
@@ -328,7 +386,7 @@ def main():
 
             html_content = (
                 '<div class="quadrant-container">'
-                '<div class="quad-box border-right border-bottom" style="background-color: #fafafa;"><div style="color: #ccc; font-size: 13px;">（左上留空）</div></div>'
+                '<div class="quad-box border-right border-bottom" style="background-color: #fafafa;"><div style="color: #ccc; font-size: 13px;">（全格局比較）</div></div>'
                 '<div class="quad-box border-bottom" style="padding: 15px 10px;">'
                 f'<div class="inner-divider"><div class="q-title">【天格】</div><div class="q-star">{t_star}</div><div class="q-sub"><span class="q-stroke">{tiange}劃</span>｜{tiange_str}</div></div>'
                 f'<div class="inner-divider renge-item"><div class="q-title" style="color:#7E57C2;">★ 【人格】(核心)</div><div class="q-sub" style="color:#5e35b1; margin-top: 6px;"><span class="q-stroke">{renge}劃</span>｜{renge_str}</div></div>'
@@ -341,25 +399,91 @@ def main():
 
             st.markdown(html_content, unsafe_allow_html=True)
 
+            # 五行生剋對應卡片（左右對照）
+            st.markdown("#### 🔄 各格五行生剋解析")
+
+            all_relations = analyze_all_grid_relations(grid_elements)
+            sheng_list = [
+                r for r in all_relations if r["type"] in ["相生", "比和"]
+            ]
+            ke_list = [r for r in all_relations if r["type"] == "相剋"]
+
+            col_left, col_right = st.columns(2)
+
+            with col_left:
+                sheng_items_html = "".join(
+                    [
+                        f'<div class="card-item">🟢 {r["desc"]}</div>'
+                        for r in sheng_list
+                    ]
+                )
+                if not sheng_items_html:
+                    sheng_items_html = (
+                        '<div class="card-item" style="color:#888;">無相生關係</div>'
+                    )
+
+                st.markdown(
+                    f"""
+                    <div class="relation-card-sheng">
+                        <div class="card-title-sheng">🟢 相生 / 比和關係 ({len(sheng_list)})</div>
+                        {sheng_items_html}
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+            with col_right:
+                ke_items_html = "".join(
+                    [
+                        f'<div class="card-item">🔴 {r["desc"]}</div>'
+                        for r in ke_list
+                    ]
+                )
+                if not ke_items_html:
+                    ke_items_html = (
+                        '<div class="card-item" style="color:#888;">無相剋關係</div>'
+                    )
+
+                st.markdown(
+                    f"""
+                    <div class="relation-card-ke">
+                        <div class="card-title-ke">🔴 相剋關係 ({len(ke_list)})</div>
+                        {ke_items_html}
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+        # ---------------------------------------------------------
         # 分頁二：筆劃詳細說明
+        # ---------------------------------------------------------
         with tab2:
             st.markdown("##### ✍️ 漢字姓名學筆劃詳細解析")
 
-            all_chars = [(c, "姓氏") for c in surname] + [(c, "名字") for c in given_name]
-            cols = st.columns(len(all_chars))
-
-            for idx, (char, role) in enumerate(all_chars):
+            records = []
+            for char, role in [(c, "姓氏") for c in surname] + [
+                (c, "名字") for c in given_name
+            ]:
                 final_s, base_s, note = get_name_stroke_count(char)
-                with cols[idx]:
-                    st.metric(label=f"{role} 【{char}】", value=f"{final_s} 劃")
-                    if note:
-                        st.caption(note)
+                records.append(
+                    {
+                        "類別": role,
+                        "漢字": char,
+                        "傳統筆劃 (校正後)": f"{final_s} 劃",
+                        "原始筆劃": f"{base_s} 劃",
+                        "部首校正說明": note.strip() if note else "無校正",
+                    }
+                )
 
-    # 底部說明
-    with st.expander("ℹ️ 關於姓名學筆劃計算規則說明"):
-        st.write(
-            "本系統筆劃採用傳統姓名學部首校正標準（例如 氵水部以4劃計、艹艸部以6劃計、左阝阜部以14劃計、右阝邑部以12劃計...等），結合 Unicode Unihan 資料庫全自動檢索計算。"
-        )
+            df = pd.DataFrame(records)
+            st.dataframe(df, use_container_width=True, hide_index=True)
+
+            # 說明區塊僅放在標籤2（tab2）
+            with st.expander("ℹ️ 關於姓名學筆劃計算規則說明"):
+                st.write(
+                    "本系統筆劃採用傳統姓名學部首校正標準（例如 氵水部以4劃計、艹艸部以6劃計、左阝阜部以14劃計、右阝邑部以12劃計...等）。\n"
+                    "特別說明：忄偏旁以4劃計算 (+1劃校正)；但文字中若呈現為『心』字本體（如『思』、『德』），則直接計算原筆畫，不進行 +1 劃校正。"
+                )
 
 
 if __name__ == "__main__":
