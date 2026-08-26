@@ -2,9 +2,10 @@ import os
 import sqlite3
 import pandas as pd
 import streamlit as st
+from typing import Dict, List, Tuple, Optional, Any
 
 # =========================================================
-# 1. 頁面基本配置
+# 1. 頁面配置與全局常量定義
 # =========================================================
 st.set_page_config(
     page_title="全自動姓名學分析器",
@@ -13,276 +14,9 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# =========================================================
-# 2. 美工 CSS
-# =========================================================
-st.markdown(
-    """
-<style>
-.main { background-color: #f8f9fa; }
-
-.quadrant-container {
-    display: grid;
-    grid-template-columns: 1fr 2fr;
-    gap: 0px;
-    background: #ffffff;
-    border-radius: 16px;
-    box-shadow: 0 10px 25px rgba(126, 87, 194, 0.12);
-    overflow: hidden;
-    margin: 20px 0;
-    border: 2px solid #e0d7f3;
-}
-
-.quad-box {
-    padding: 20px 15px;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-}
-
-.border-right { border-right: 2px solid #7E57C2; }
-.border-bottom { border-bottom: 2px solid #e0e0e0; }
-
-.inner-divider {
-    border-bottom: 1px dashed #e0d7f3;
-    width: 100%;
-    padding-bottom: 12px;
-    margin-bottom: 12px;
-}
-
-.renge-item {
-    background-color: #f3f0ff;
-    padding: 12px 10px;
-    border-radius: 10px;
-    border-left: 4px solid #7E57C2;
-    width: 90%;
-}
-
-.q-title { font-size: 13px; color: #666; font-weight: bold; margin-bottom: 6px; }
-
-.q-star { 
-    font-size: 22px; 
-    font-weight: 800; 
-    color: #7E57C2;
-    background-color: #f3f0ff;
-    padding: 2px 14px;
-    border-radius: 20px;
-    display: inline-block;
-    margin-bottom: 4px;
-}
-
-.q-sub { font-size: 14px; color: #4A5568; font-weight: 600; }
-.q-stroke { font-size: 15px; font-weight: 700; color: #2C3E50; }
-
-.special-card-container {
-    background-color: #fff9c4;
-    border: 1px solid #fbc02d;
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 20px;
-}
-
-.special-card-title {
-    font-size: 16px;
-    font-weight: bold;
-    color: #f57f17;
-    margin-bottom: 10px;
-    border-bottom: 1px dashed #fbc02d;
-    padding-bottom: 6px;
-}
-
-.special-item {
-    font-size: 14px;
-    color: #333333;
-    padding: 6px 0;
-    border-bottom: 1px dashed rgba(0,0,0,0.06);
-}
-
-.alert-tag {
-    background-color: #ff5252;
-    color: white;
-    font-size: 12px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: bold;
-    margin-left: 6px;
-}
-
-.premise-tag {
-    background-color: #d50000;
-    color: #ffffff;
-    font-size: 12px;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-weight: bold;
-    display: inline-block;
-    margin-right: 6px;
-    box-shadow: 0 2px 4px rgba(213, 0, 0, 0.3);
-}
-
-.star-card {
-    border-radius: 12px;
-    padding: 15px;
-    margin-bottom: 15px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
-}
-
-.star-title {
-    font-size: 16px;
-    font-weight: bold;
-    margin-bottom: 8px;
-    border-bottom: 1px dashed rgba(0,0,0,0.15);
-    padding-bottom: 6px;
-}
-
-.star-item {
-    font-size: 14px;
-    padding: 4px 0;
-    line-height: 1.5;
-}
-
-.star-card-bi { background-color: #f3e5f5; border: 1px solid #ce93d8; }
-.star-title-bi { color: #6a1b9a; }
-
-.star-card-shi { background-color: #e8f5e9; border: 1px solid #a5d6a7; }
-.star-title-shi { color: #2e7d32; }
-
-.star-card-cai { background-color: #fff8e1; border: 1px solid #ffe082; }
-.star-title-cai { color: #f57f17; }
-
-.star-card-guan { background-color: #ffebee; border: 1px solid #ef9a9a; }
-.star-title-guan { color: #c62828; }
-
-.star-card-yin { background-color: #e3f2fd; border: 1px solid #90caf9; }
-.star-title-yin { color: #1565c0; }
-
-.all-stars-card {
-    background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
-    border: 2px solid #fb8c00;
-    border-radius: 12px;
-    padding: 15px;
-    margin-bottom: 15px;
-    color: #e65100;
-    font-weight: bold;
-    font-size: 16px;
-    box-shadow: 0 4px 10px rgba(251, 140, 0, 0.2);
-}
-
-.star-pattern-card {
-    background-color: #f4ecf7;
-    border: 1.5px solid #8e44ad;
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 20px;
-}
-
-.star-pattern-title {
-    font-size: 16px;
-    font-weight: bold;
-    color: #6c3483;
-    margin-bottom: 10px;
-    border-bottom: 1px dashed #8e44ad;
-    padding-bottom: 6px;
-}
-
-.relation-card-sheng {
-    background-color: rgba(232, 245, 233, 0.65);
-    border: 1px solid #a5d6a7;
-    border-radius: 12px;
-    padding: 15px;
-    margin-top: 10px;
-    height: 100%;
-}
-
-.relation-card-ke {
-    background-color: rgba(255, 235, 238, 0.65);
-    border: 1px solid #ef9a9a;
-    border-radius: 12px;
-    padding: 15px;
-    margin-top: 10px;
-    height: 100%;
-}
-
-.card-title-sheng {
-    font-size: 16px;
-    font-weight: bold;
-    color: #2e7d32;
-    margin-bottom: 10px;
-    border-bottom: 2px solid #a5d6a7;
-    padding-bottom: 5px;
-}
-
-.card-title-ke {
-    font-size: 16px;
-    font-weight: bold;
-    color: #c62828;
-    margin-bottom: 10px;
-    border-bottom: 2px solid #ef9a9a;
-    padding-bottom: 5px;
-}
-
-.card-item {
-    font-size: 14px;
-    color: #333333;
-    padding: 8px 0;
-    border-bottom: 1px dashed rgba(0,0,0,0.08);
-}
-
-.trait-good {
-    color: #2e7d32;
-    font-size: 13px;
-    margin-top: 2px;
-}
-
-.trait-bad {
-    color: #c62828;
-    font-size: 13px;
-    margin-top: 2px;
-}
-
-/* 樣式新增：相剋（深紅紫）與 相生（墨綠）卡片 */
-.pattern-card-ke {
-    background-color: #f5eeef;
-    border: 2px solid #6c3483;
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 15px;
-}
-.pattern-title-ke {
-    color: #6c3483;
-    font-size: 18px;
-    font-weight: bold;
-    border-bottom: 1.5px dashed #6c3483;
-    padding-bottom: 6px;
-    margin-bottom: 10px;
-}
-
-.pattern-card-sheng {
-    background-color: #f1f8f3;
-    border: 2px solid #1b5e20;
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 15px;
-}
-.pattern-title-sheng {
-    color: #1b5e20;
-    font-size: 18px;
-    font-weight: bold;
-    border-bottom: 1.5px dashed #1b5e20;
-    padding-bottom: 6px;
-    margin-bottom: 10px;
-}
-</style>
-""",
-    unsafe_allow_html=True,
-)
-
-# =========================================================
-# 3. 核心計算邏輯與對照資料庫
-# =========================================================
 DB_FILE_NAME = "hanzi_strokes_v2.db"
+LEFT_B = "170"
+RIGHT_B = "163"
 
 CHAR_EXCEPTIONS = {
     "王": (4, " (王部本字/部首: 4劃)"),
@@ -290,10 +24,8 @@ CHAR_EXCEPTIONS = {
     "黃": (12, " (黃部本字: 12劃)"),
     "玉": (5, " (玉部本字: 原劃數5劃不校正)"),
     "成": (7, " (特例預設: 7劃)"),
+    "悅": (11, " (忄心部偏旁: +1劃校正，計 4劃)"),
 }
-
-LEFT_B = "170"
-RIGHT_B = "163"
 
 WUXING_ORDER = ["木", "火", "土", "金", "水"]
 WUXING_TO_INDEX = {w: i for i, w in enumerate(WUXING_ORDER)}
@@ -318,120 +50,41 @@ NAYIN_TABLE = {
 GAN = ["庚", "辛", "壬", "癸", "甲", "乙", "丙", "丁", "戊", "己"]
 ZHI = ["申", "酉", "戌", "亥", "子", "丑", "寅", "卯", "辰", "巳", "午", "未"]
 
-
-def get_nayin_element(year: int) -> str:
-    try:
-        gan = GAN[year % 10]
-        zhi = ZHI[year % 12]
-        return NAYIN_TABLE.get(f"{gan}{zhi}", "未知")
-    except Exception:
-        return "未知"
-
-
 PATTERN_MAP = {
-    # 相剋格局
     frozenset(["金", "木"]): ("金木局", "剋"),
     frozenset(["水", "火"]): ("水火局", "剋"),
     frozenset(["火", "金"]): ("火金局", "剋"),
     frozenset(["木", "土"]): ("木土局", "剋"),
     frozenset(["土", "水"]): ("土水局", "剋"),
-    # 相生格局
-    frozenset(["木", "火"]): ("木火局", "生"),
-    frozenset(["火", "土"]): ("火土局", "生"),
-    frozenset(["土", "金"]): ("土金局", "生"),
-    frozenset(["金", "水"]): ("金水局", "生"),
-    frozenset(["水", "木"]): ("水木局", "生"),
 }
 
 PATTERN_DETAILS = {
     "金木局": {
-        "core": "積極（迫於壓力）、行動派、先做再說。",
-        "advantage": "實踐能力強，在外展現極高的執行力。",
-        "disadvantage": "個性急、給人較強烈的壓力感。",
-        "face": None,
-        "internal_home": "在家中表現積極，做家事勤快，個人空間與習慣保持乾淨整齊。",
-        "internal_stress": "內在自我要求高，容易在私人領域給自己較大的緊張感。"
+        "advantage": "積極，執行力強，行動派，實踐能力蠻強，先做再說；在家中表現積極，做家事勤快，家中看起來乾淨整齊。",
+        "disadvantage": "個性急、壓力感比較大。",
     },
     "水火局": {
-        "core": "熱情（衝動易暴躁）、熱心、情緒化。",
-        "advantage": "熱心服務、情緒直接表達不隱藏。",
-        "disadvantage": "脾氣較差、情緒容易上臉、易生衝突。",
-        "face": "招風耳（熱心雞婆、具服務熱忱）、刀眉（個性強，脾氣差，但可隨歷練磨合）。",
-        "internal_home": "私下情緒反應直接，對親近的人容易暴躁或直接攤牌。",
-        "internal_stress": "情緒起伏較大，家宅內需注意和諧溝通。"
+        "advantage": "熱心、情緒化、情緒容易上臉，會直接表現出來。",
+        "disadvantage": "脾氣不會很好；黑道衝突中水火局者較多。",
+        "face": "<b>招風耳</b>：熱心、個性雞婆、具服務熱忱。<br><b>刀眉</b>：個性強，脾氣差，但可能隨社會、家庭打磨改善。",
     },
     "火金局": {
-        "core": "理性（行動較慢，易錯失機會）、猶豫不決。",
-        "advantage": "做事深謀慮，考慮周全。",
-        "disadvantage": "下決定慢，常被不熟悉的人認為龜毛。",
-        "face": "單眼皮（較理性、稍顯不近人情）、雙眼皮（較感性）。",
-        "internal_home": "內心小劇場較多，面對私事或重大決策時容易反覆猶豫。",
-        "internal_stress": "私下容易想太多，造成精神負擔。"
+        "advantage": "個性理性，做事前會考慮多。",
+        "disadvantage": "行動慢易錯失機會，不會很快下決定，不了解的人會認為其龜毛。",
+        "face": "<b>單眼皮</b>：不盡人情。<br><b>雙眼皮</b>：感性。",
     },
     "木土局": {
-        "core": "獨立（固執不知變通，但心思細膩）、一板一眼（死腦筋）。",
-        "advantage": "遵守規矩，講定後即講信用、不輕易改變。",
-        "disadvantage": "固執、認定的事難以溝通。",
-        "face": "鼻樑直（個性死板，好講場面話）、鼻樑歪（如政治人物般善講場面話）。",
-        "internal_home": "在家中或私下極度講究原則與規矩，不易接受家人的勸告。",
-        "internal_stress": "極度固執，需防自我設限。"
+        "advantage": "若都照規矩來，講好後就不會改變。",
+        "disadvantage": "正直（固執、不知變通），個性一板一眼，死腦筋，認定的事情不容易改變，照規矩行事。",
+        "special_note": "上下（外在與內在）都是木土局者：講不通、難溝通。",
+        "face": "<b>鼻樑直</b>：個性死板，喜歡講場面話。<br><b>鼻樑歪</b>：像政治人物般好講場面話。",
     },
     "土水局": {
-        "core": "圓融（較易喪失立場或理想）、隨和、懶惰。",
-        "advantage": "樂觀隨和、個性軟，相信船到橋頭自然直。",
-        "disadvantage": "較為被動懶散，容易缺乏堅持與立場。",
-        "face": "體態較為豐滿、圓潤。",
-        "internal_home": "私底下生活隨性、求舒適，性情圓滑不爭搶，但也較為懶散。",
-        "internal_stress": "缺乏衝勁，行動力較弱。"
-    },
-    "木火局": {
-        "core": "木火通明、熱情洋溢、積極向上、具文昌才華與表達力。",
-        "advantage": "學習與領悟力極佳，極富創造力與感染力，擅長帶動氣氛。",
-        "disadvantage": "火氣過旺時易流於三分鐘熱度，缺乏持續性與耐力。",
-        "face": "面色紅潤、眼神明亮且有神采。",
-        "internal_home": "私下熱情活潑，對家人照顧備至，但也容易因操心過度而煩躁。",
-        "internal_stress": "精神能量消耗快，需注意睡眠與心血管調養。"
-    },
-    "火土局": {
-        "core": "火土相生、溫和穩重、包容力強、講求信義與禮節。",
-        "advantage": "踏實肯幹、忠誠可靠，能給予身邊人極大的安全感。",
-        "disadvantage": "轉變彈性較差，有時顯得過於笨拙或反應較慢。",
-        "face": "面輪廓寬厚、天庭飽滿。",
-        "internal_home": "在家中包容性極佳，默默付出，是家中的堅實後盾。",
-        "internal_stress": "習慣將壓力吞下，容易造成腸胃或體能負荷。"
-    },
-    "土金局": {
-        "core": "土金相生、剛毅果決、做事井然有序、重講誠信。",
-        "advantage": "執行與落實能力極強，講究規則，講信用。",
-        "disadvantage": "略顯嚴肅冷酷，缺乏圓融與人情味。",
-        "face": "五官輪廓分明、骨骼感較強。",
-        "internal_home": "家庭生活非常有條理，規矩明確，對家眷要求嚴格。",
-        "internal_stress": "過於壓抑情感與完美主義，內心張力大。"
-    },
-    "金水局": {
-        "core": "金水相涵、聰明睿智、反應敏捷、靈活應變能力強。",
-        "advantage": "邏輯分析能力極高，善於溝通與表達，人際關係圓融。",
-        "disadvantage": "心思多變、缺乏定性，有時過於精明算計。",
-        "face": "膚色白皙、雙眸清澈有神。",
-        "internal_home": "私下靈活多變，喜好自由舒適的私人空間。",
-        "internal_stress": "思緒過多，容易焦慮或失眠。"
-    },
-    "水木局": {
-        "core": "水木相生、仁慈有愛、富有同理心、隨和且具成長潛力。",
-        "advantage": "善解人意，具有極高的適應力與學習成長動能。",
-        "disadvantage": "易受外界環境影響，缺乏主見與獨立決斷力。",
-        "face": "線條柔和、眼神溫和慈祥。",
-        "internal_home": "在家中隨和好說話，注重家庭情感溝通與交流。",
-        "internal_stress": "容易受他人情緒感染而產生內心波瀾。"
+        "advantage": "圓融（隨和），樂觀，個性軟，船到橋頭自然直。",
+        "disadvantage": "懶、容易喪失自己的立場（不堅持）。",
+        "face": "體態較豐滿、圓潤。",
     }
 }
-
-
-def calculate_pattern(elem1: str, elem2: str):
-    if elem1 == elem2:
-        return None, None
-    return PATTERN_MAP.get(frozenset([elem1, elem2]), (None, None))
-
 
 PAIR_COMBINATIONS = [
     ("天格", "人格"), ("人格", "地格"), ("人格", "外格"), ("人格", "總格"),
@@ -479,51 +132,259 @@ RELATION_TRAITS = {
     "外剋地": {"優點": "小心、仔細", "缺點": "主觀強 (不聽別人建議)，自築心強 (防別人)，人際關係不佳。"},
     "總生人": {"優點": "能包裝、促銷自己，有品味能散發出魅力，手腕佳，具享福命", "缺點": "外華內虛，好面子。"},
     "總生地": {"優點": "孝順父母", "缺點": "財洩漏。"},
-    "總生外": {"優點": "知人善任，懂用方法達到目的，錢花在刀口上 (大老闆、高階主管)",
-               "缺點": "善用優勢掌握他人，自以為是；喜賺輕鬆財。"},
+    "總生外": {"優點": "知人善任，懂用方法達到目的，錢花在刀口上 (大老闆、高階主管)", "缺點": "善用優勢掌握他人，自以為是；喜賺輕鬆財。"},
     "總剋人": {"優點": "勤檢致富，有風險意識", "缺點": "勞碌。"},
     "總剋地": {"優點": "注重子女教育 (願意花時間看小孩功課，關心孩子聯絡簿)", "缺點": "管教子女嚴厲，與子女有代溝。"},
     "總剋外": {"優點": "實行家，不空談，處事積極，重事業，賺錢點子多", "缺點": "財慾心過重，投機心重，財來財去。"},
     "地生天": {"優點": "喜家族觀念 (順從)，敬天畏地，有孝恩，對長上尊崇", "缺點": "無特殊明顯缺點"},
     "地生人": {"優點": "注重人士細節，心思細密，懂禮數，人際圓滿", "缺點": "矯柔，著眼在財利。"},
-    "地生外": {"優點": "好相處，人際關係好，真心對人好 (對朋友好)",
-               "缺點": "有求必應，不懂拒絕別人，為人容易受騙 (容易替人作保，做超出自己能力範圍之事)。"},
+    "地生外": {"優點": "好相處，人際關係好，真心對人好 (對朋友好)", "缺點": "有求必應，不懂拒絕別人，為人容易受騙 (容易替人作保，做超出自己能力範圍之事)。"},
     "人剋總": {"優點": "易繼承祖產 (父母會留有價值的東西)", "缺點": "易耗財，不知節約，不懂惜福，晚景不佳。"},
     "人剋天": {"優點": "意志堅定，很踏實，不易改變初衷，對事業專注", "缺點": "易得罪人，暗藏賭性，專制不服人。"},
     "人剋地": {"優點": "有口才，言之有務，善分析，腦筋靈活", "缺點": "缺責任感，行事由別人收尾，輕諾不實現 (很會畫餅)。"},
     "人剋外": {"優點": "有藝術眼光，穿著有格調，有品味", "缺點": "佔有慾，意氣用事，易給別人壓力。"},
-    "天生人": {"優點": "女生長相斯文，具人緣，畢生於積善之家，善體人意，思維正面",
-               "缺點": "未必有實力，卻有神氣樣，恃寵而驕。"},
-    "天生地": {"優點": "重視子女教育 (疼小孩，很願意花錢在孩子身上)、穩重、保守、深思熟慮、設身處地",
-               "缺點": "遇事猶豫不決，長上預干預家中事。"},
+    "天生人": {"優點": "女生長相斯文，具人緣，畢生於積善之家，善體人意，思維正面", "缺點": "未必有實力，卻有神氣樣，恃寵而驕。"},
+    "天生地": {"優點": "重視子女教育 (疼小孩，很願意花錢在孩子身上)、穩重、保守、深思熟慮、設身處地", "缺點": "遇事猶豫不決，長上預干預家中事。"},
     "天生外": {"優點": "喜擴展事業與分支機構，喜搞下線", "缺點": "對親友或部屬卻難得回報。"},
     "天剋人": {"優點": "思維守禮教 (聽話)，負責任", "缺點": "易背長上債，拖累或壓迫。"},
     "天剋地": {"優點": "為人較實在，給人信賴感", "缺點": "手腳或腹部以下容易受傷 (不見血)。"},
     "天剋外": {"優點": "易得好友與部屬相助，長上注重外在行為與舉止形象", "缺點": "易成/易敗/易有外傷 (流血、割傷)。"},
 }
 
+# =========================================================
+# 2. 注入 CSS 樣式
+# =========================================================
+def inject_custom_css():
+    st.markdown(
+        """
+    <style>
+    .main { background-color: #f8f9fa; }
+    .quadrant-container {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 0px;
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 10px 25px rgba(126, 87, 194, 0.12);
+        overflow: hidden;
+        margin: 20px 0;
+        border: 2px solid #e0d7f3;
+    }
+    .quad-box {
+        padding: 20px 15px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+    .border-right { border-right: 2px solid #7E57C2; }
+    .border-bottom { border-bottom: 2px solid #e0e0e0; }
+    .inner-divider {
+        border-bottom: 1px dashed #e0d7f3;
+        width: 100%;
+        padding-bottom: 12px;
+        margin-bottom: 12px;
+    }
+    .renge-item {
+        background-color: #f3f0ff;
+        padding: 12px 10px;
+        border-radius: 10px;
+        border-left: 4px solid #7E57C2;
+        width: 90%;
+    }
+    .q-title { font-size: 13px; color: #666; font-weight: bold; margin-bottom: 6px; }
+    .q-star { 
+        font-size: 22px; 
+        font-weight: 800; 
+        color: #7E57C2;
+        background-color: #f3f0ff;
+        padding: 2px 14px;
+        border-radius: 20px;
+        display: inline-block;
+        margin-bottom: 4px;
+    }
+    .q-sub { font-size: 14px; color: #4A5568; font-weight: 600; }
+    .q-stroke { font-size: 15px; font-weight: 700; color: #2C3E50; }
+    .special-card-container {
+        background-color: #fff9c4;
+        border: 1px solid #fbc02d;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+    .special-card-title {
+        font-size: 16px;
+        font-weight: bold;
+        color: #f57f17;
+        margin-bottom: 10px;
+        border-bottom: 1px dashed #fbc02d;
+        padding-bottom: 6px;
+    }
+    .special-item {
+        font-size: 14px;
+        color: #333333;
+        padding: 6px 0;
+        border-bottom: 1px dashed rgba(0,0,0,0.06);
+    }
+    .alert-tag {
+        background-color: #ff5252;
+        color: white;
+        font-size: 12px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: bold;
+        margin-left: 6px;
+    }
+    .premise-tag {
+        background-color: #d50000;
+        color: #ffffff;
+        font-size: 12px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: bold;
+        display: inline-block;
+        margin-right: 6px;
+        box-shadow: 0 2px 4px rgba(213, 0, 0, 0.3);
+    }
+    .star-card {
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    }
+    .star-title {
+        font-size: 16px;
+        font-weight: bold;
+        margin-bottom: 8px;
+        border-bottom: 1px dashed rgba(0,0,0,0.15);
+        padding-bottom: 6px;
+    }
+    .star-item { font-size: 14px; padding: 4px 0; line-height: 1.5; }
+    .star-card-bi { background-color: #f3e5f5; border: 1px solid #ce93d8; }
+    .star-title-bi { color: #6a1b9a; }
+    .star-card-shi { background-color: #e8f5e9; border: 1px solid #a5d6a7; }
+    .star-title-shi { color: #2e7d32; }
+    .star-card-cai { background-color: #fff8e1; border: 1px solid #ffe082; }
+    .star-title-cai { color: #f57f17; }
+    .star-card-guan { background-color: #ffebee; border: 1px solid #ef9a9a; }
+    .star-title-guan { color: #c62828; }
+    .star-card-yin { background-color: #e3f2fd; border: 1px solid #90caf9; }
+    .star-title-yin { color: #1565c0; }
+    .all-stars-card {
+        background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+        border: 2px solid #fb8c00;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 15px;
+        color: #e65100;
+        font-weight: bold;
+        font-size: 16px;
+        box-shadow: 0 4px 10px rgba(251, 140, 0, 0.2);
+    }
+    .star-pattern-card {
+        background-color: #f4ecf7;
+        border: 1.5px solid #8e44ad;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+    .star-pattern-title {
+        font-size: 16px;
+        font-weight: bold;
+        color: #6c3483;
+        margin-bottom: 10px;
+        border-bottom: 1px dashed #8e44ad;
+        padding-bottom: 6px;
+    }
+    .relation-card-sheng {
+        background-color: rgba(232, 245, 233, 0.65);
+        border: 1px solid #a5d6a7;
+        border-radius: 12px;
+        padding: 15px;
+        margin-top: 10px;
+        height: 100%;
+    }
+    .relation-card-ke {
+        background-color: rgba(255, 235, 238, 0.65);
+        border: 1px solid #ef9a9a;
+        border-radius: 12px;
+        padding: 15px;
+        margin-top: 10px;
+        height: 100%;
+    }
+    .card-title-sheng {
+        font-size: 16px;
+        font-weight: bold;
+        color: #2e7d32;
+        margin-bottom: 10px;
+        border-bottom: 2px solid #a5d6a7;
+        padding-bottom: 5px;
+    }
+    .card-title-ke {
+        font-size: 16px;
+        font-weight: bold;
+        color: #c62828;
+        margin-bottom: 10px;
+        border-bottom: 2px solid #ef9a9a;
+        padding-bottom: 5px;
+    }
+    .card-item {
+        font-size: 14px;
+        color: #333333;
+        padding: 8px 0;
+        border-bottom: 1px dashed rgba(0,0,0,0.08);
+    }
+    .trait-good { color: #2e7d32; font-size: 13px; margin-top: 2px; }
+    .trait-bad { color: #c62828; font-size: 13px; margin-top: 2px; }
+    .pattern-card-ke {
+        background-color: #f5eeef;
+        border: 2px solid #6c3483;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 15px;
+    }
+    .pattern-title-ke {
+        color: #6c3483;
+        font-size: 18px;
+        font-weight: bold;
+        border-bottom: 1.5px dashed #6c3483;
+        padding-bottom: 6px;
+        margin-bottom: 10px;
+    }
+    </style>
+    """,
+        unsafe_allow_html=True,
+    )
 
-@st.cache_data
-def get_name_stroke_count(char: str) -> tuple[int, int, str]:
-    if char in CHAR_EXCEPTIONS:
-        stroke, note = CHAR_EXCEPTIONS[char]
-        return stroke, stroke, note
-
+# =========================================================
+# 3. 資料庫查詢與基礎計算
+# =========================================================
+@st.cache_data(ttl=3600)
+def query_char_stroke_from_db(char: str) -> Optional[Tuple[int, str]]:
     if not os.path.exists(DB_FILE_NAME):
-        return 0, 0, "無資料庫"
-
+        return None
     try:
         with sqlite3.connect(f"file:{DB_FILE_NAME}?mode=ro", uri=True) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT stroke_count, radical_id FROM strokes WHERE char = ?", (char,))
-            result = cursor.fetchone()
+            row = cursor.fetchone()
+            if row:
+                return int(row[0]), str(row[1])
     except Exception:
-        return 0, 0, "查詢失敗"
+        pass
+    return None
 
-    if not result:
-        return 0, 0, "無資料"
+def get_name_stroke_count(char: str) -> Tuple[int, int, str]:
+    if char in CHAR_EXCEPTIONS:
+        stroke, note = CHAR_EXCEPTIONS[char]
+        return stroke, stroke, note
 
-    base_stroke, rad_id = result[0], result[1]
+    db_res = query_char_stroke_from_db(char)
+    if not db_res:
+        return 0, 0, "無資料庫或無此字記錄"
+
+    base_stroke, rad_id = db_res
     final_stroke = base_stroke
     note = ""
 
@@ -533,6 +394,12 @@ def get_name_stroke_count(char: str) -> tuple[int, int, str]:
     elif rad_id == RIGHT_B:
         final_stroke += 5
         note = " (右阝邑部: +5劃)"
+    elif rad_id == "61":  # 心部 (含『心』字本體與『忄』豎心旁)
+        if "忄" in char:
+            final_stroke += 1
+            note = " (忄心部偏旁: +1劃校正，計 4劃)"
+        else:
+            note = " (心部字本體: 原劃數不變，計 4劃)"
     else:
         rad_offsets = {
             "140": (3, " (艹艸部: +3劃)"),
@@ -553,17 +420,40 @@ def get_name_stroke_count(char: str) -> tuple[int, int, str]:
         elif (rad_id == "96" or "𤣩" in char) and char not in ("玉", "王"):
             final_stroke += 1
             note = " (𤣩玉部偏旁: +1劃)"
-        elif rad_id == "61":
-            if "忄" in char:
-                final_stroke += 1
-                note = " (忄心部偏旁: +1劃)"
-            else:
-                note = " (心部字本體: 原劃數不校正)"
 
     return final_stroke, base_stroke, note
 
+def get_nayin_element(year: int) -> str:
+    try:
+        gan = GAN[year % 10]
+        zhi = ZHI[year % 12]
+        return NAYIN_TABLE.get(f"{gan}{zhi}", "未知")
+    except Exception:
+        return "未知"
 
-def analyze_special_numbers(grid_strokes: dict) -> list[str]:
+def get_gan_zhi_wuxing(num: int) -> Tuple[str, str]:
+    GAN_MAP = ["癸", "甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬"]
+    ZHI_MAP = ["亥", "子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌"]
+    GAN_WUXING = {"甲": "木", "乙": "木", "丙": "火", "丁": "火", "戊": "土", "己": "土", "庚": "金", "辛": "金", "壬": "水", "癸": "水"}
+
+    gan = GAN_MAP[num % 10]
+    zhi = ZHI_MAP[num % 12]
+    wuxing = GAN_WUXING[gan]
+    return f"{wuxing}{gan}{zhi}", wuxing
+
+def get_star(base_wuxing: str, target_wuxing: str) -> str:
+    diff = (WUXING_TO_INDEX[target_wuxing] - WUXING_TO_INDEX[base_wuxing]) % 5
+    return STAR_ORDER[diff]
+
+def calculate_pattern(elem1: str, elem2: str) -> Tuple[Optional[str], Optional[str]]:
+    if elem1 == elem2:
+        return None, None
+    return PATTERN_MAP.get(frozenset([elem1, elem2]), (None, None))
+
+# =========================================================
+# 4. 分析邏輯模組
+# =========================================================
+def analyze_special_numbers(grid_strokes: Dict[str, int]) -> List[str]:
     results = []
     for grid_name, num in grid_strokes.items():
         if num in (12, 21, 22):
@@ -587,26 +477,20 @@ def analyze_special_numbers(grid_strokes: dict) -> list[str]:
                     desc += " <strong>(放在總格：配偶身體不好，容易早離世)</strong>"
             results.append(desc)
         elif num == 24:
-            results.append(
-                f"🗣️ <strong>{grid_name} ({num}劃) - 【口舌】</strong>：愛講話、嘮叨；工作上健談，適合從事業務員 / 老師 / 房仲 / 保險員。")
+            results.append(f"🗣️ <strong>{grid_name} ({num}劃) - 【口舌】</strong>：愛講話、嘮叨；工作上健談，適合從事業務員 / 老師 / 房仲 / 保險員。")
         elif num == 25:
             results.append(f"🍃 <strong>{grid_name} ({num}劃) - 【溫和數】</strong>：能力好、較內斂 (不喜展現給人看)。")
         elif num == 26:
-            results.append(
-                f"🌑 <strong>{grid_name} ({num}劃) - 【黑暗數】</strong>：個性悶、話少、有事會憋在心裡 (得憂鬱症比例高)、內向害羞 (不容易衝動、得罪人，較沉穩)。")
+            results.append(f"🌑 <strong>{grid_name} ({num}劃) - 【黑暗數】</strong>：個性悶、話少、有事會憋在心裡 (得憂鬱症比例高)、內向害羞 (不容易衝動、得罪人，較沉穩)。")
         elif num == 44 and grid_name == "總格":
-            results.append(
-                f"☠️ <strong>{grid_name} ({num}劃) - 【死亡星】</strong> <span class='alert-tag'>⚠️ 重點提示</span>：個性悶、話少、有事會憋在心裡 (得憂鬱症比例高)、內向害羞 (不容易衝動、得罪人，較沉穩)。")
+            results.append(f"☠️ <strong>{grid_name} ({num}劃) - 【死亡星】</strong> <span class='alert-tag'>⚠️ 重點提示</span>：個性悶、話少、有事會憋在心裡 (得憂鬱症比例高)、內向害羞 (不容易衝動、得罪人，較沉穩)。")
         elif num == 41:
-            results.append(
-                f"🌟 <strong>{grid_name} ({num}劃) - 【領導數】</strong>：有領導魅力，會主動找人聚會 / 聚餐 / 旅遊組團。")
+            results.append(f"🌟 <strong>{grid_name} ({num}劃) - 【領導數】</strong>：有領導魅力，會主動找人聚會 / 聚餐 / 旅遊組團。")
         elif num == 32:
-            results.append(
-                f"♟️ <strong>{grid_name} ({num}劃) - 【軍師數】</strong>：不喜出頭、扛責任；幕後指揮，一樣可為領導人。")
+            results.append(f"♟️ <strong>{grid_name} ({num}劃) - 【軍師數】</strong>：不喜出頭、扛責任；幕後指揮，一樣可為領導人。")
     return results
 
-
-def analyze_five_stars_in_grids(grid_stars: dict) -> tuple[dict, bool]:
+def analyze_five_stars_in_grids(grid_stars: Dict[str, str]) -> Tuple[Dict[str, List[str]], bool]:
     categorized_results = {k: [] for k in STAR_ORDER}
 
     for grid_name, star in grid_stars.items():
@@ -618,15 +502,14 @@ def analyze_five_stars_in_grids(grid_stars: dict) -> tuple[dict, bool]:
 
     other_stars = set(v for k, v in grid_stars.items() if k != "人格")
     is_all_five_stars = (
-            len(other_stars) == 4
-            and "比" not in other_stars
-            and set(STAR_ORDER) == (other_stars | {"比"})
+        len(other_stars) == 4
+        and "比" not in other_stars
+        and set(STAR_ORDER) == (other_stars | {"比"})
     )
 
     return {k: v for k, v in categorized_results.items() if v}, is_all_five_stars
 
-
-def analyze_special_star_patterns(grid_stars: dict, gender: str) -> list[str]:
+def analyze_special_star_patterns(grid_stars: Dict[str, str], gender: str) -> List[str]:
     other_stars = [star for grid, star in grid_stars.items() if grid != "人格"]
     counts = {s: other_stars.count(s) for s in STAR_ORDER}
     results = []
@@ -636,26 +519,21 @@ def analyze_special_star_patterns(grid_stars: dict, gender: str) -> list[str]:
     elif counts["比"] == 2:
         results.append("<b>【2比】</b>：很有想法、主見，有點固執。")
     elif counts["比"] >= 3:
-        results.append(
-            "<b>【3比/4比】</b>：太重視自我(眼裡沒有別人)、太過在乎自己；男女人際關係不佳(尤其是男女之間的感情) / 本氣太重：其他地方氣不均衡、突發病變/癌症；比太多=錢少，財留不住，沒那麼旺，看不到好處。")
+        results.append("<b>【3比/4比】</b>：太重視自我(眼裡沒有別人)、太過在乎自己；男女人際關係不佳(尤其是男女之間的感情) / 本氣太重：其他地方氣不均衡、突發病變/癌症；比太多=錢少，財留不住，沒那麼旺，看不到好處。")
 
     if counts["比"] == 2 and counts["財"] == 2:
-        results.append(
-            "<b>【比肩劫財】</b> <span class='premise-tag'>【前提條件：2比2財】</span>：財被比幹掉，錢被人幹掉或花掉，留不住。")
+        results.append("<b>【比肩劫財】</b> <span class='premise-tag'>【前提條件：2比2財】</span>：財被比幹掉，錢被人幹掉或花掉，留不住。")
 
     if counts["比"] == 2 and counts["食"] == 2:
-        results.append(
-            "<b>【比劫生食傷】</b> <span class='premise-tag'>【前提條件：2比2食】</span>：自己靠自己生出才華，通常成為專業人士(師字輩)。")
+        results.append("<b>【比劫生食傷】</b> <span class='premise-tag'>【前提條件：2比2食】</span>：自己靠自己生出才華，通常成為專業人士(師字輩)。")
 
     if counts["比"] == 2 and counts["印"] == 2:
-        results.append(
-            "<b>【印比用神】</b> <span class='premise-tag'>【前提條件：2比2印】</span>：喜歡賺投資財(有錢時很有錢、沒錢時沒錢)。")
+        results.append("<b>【印比用神】</b> <span class='premise-tag'>【前提條件：2比2印】</span>：喜歡賺投資財(有錢時很有錢、沒錢時沒錢)。")
 
     if counts["食"] >= 1:
         if gender == "女":
             if counts["食"] == 2:
-                results.append(
-                    "<b>【2食女】</b>：很愛付出、很愛做事，能幹(努力性質很高)；(聰明才智)累、勞碌、辛苦；但不要碎念嘮叨，否則付出容易被打折扣；多處幹部、主管、老闆娘。")
+                results.append("<b>【2食女】</b>：很愛付出、很愛做事，能幹(努力性質很高)；(聰明才智)累、勞碌、辛苦；但不要碎念嘮叨，否則付出容易被打折扣；多處幹部、主管、老闆娘。")
             elif counts["食"] >= 3:
                 results.append("<b>【3食女】</b>：更愛付出、更累、更勞碌；但洩氣太多，對身體不好，身體差、毛病多。")
         else:
@@ -678,8 +556,7 @@ def analyze_special_star_patterns(grid_stars: dict, gender: str) -> list[str]:
         results.append(f"{tag}{gender_desc}{common_desc}")
 
     shang_guan, zheng_guan = counts["食"], counts["官"]
-    if (shang_guan >= 1 and zheng_guan >= 1 and (shang_guan + zheng_guan >= 3)) or (
-            shang_guan == 2 and zheng_guan == 2):
+    if (shang_guan >= 1 and zheng_guan >= 1 and (shang_guan + zheng_guan >= 3)) or (shang_guan == 2 and zheng_guan == 2):
         if shang_guan == 2 and zheng_guan == 2:
             tag = "<b>【傷官見官 (2食2官)】</b> <span class='premise-tag'>【前提條件：2食2官】</span>："
         elif shang_guan >= 2:
@@ -691,8 +568,7 @@ def analyze_special_star_patterns(grid_stars: dict, gender: str) -> list[str]:
         results.append(desc)
 
     if counts["財"] == 2:
-        results.append(
-            "<b>【2財】</b>：有錢人比例高、愛賺錢且企圖心強、注重待遇；可能找副業或斜槓、投資；愛當老闆(較實際)，純粹賺錢，領固定薪者少；但易血光、意外受傷或突發疾病，即便癌症也是來得快，致死快。")
+        results.append("<b>【2財】</b>：有錢人比例高、愛賺錢且企圖心強、注重待遇；可能找副業或斜槓、投資；愛當老闆(較實際)，純粹賺錢，領固定薪者少；但易血光、意外受傷或突發疾病，即便癌症也是來得快，致死快。")
     elif counts["財"] >= 3:
         desc = "<b>【3財】</b>：更愛賺錢，更容易死得快。"
         if counts["印"] == 1:
@@ -700,27 +576,21 @@ def analyze_special_star_patterns(grid_stars: dict, gender: str) -> list[str]:
         results.append(desc)
 
     if counts["財"] == 2 and counts["食"] == 2:
-        results.append(
-            "<b>【食傷生財】</b> <span class='premise-tag'>【前提條件：2財2食】</span>：用智慧賺錢，常見為生意人，付出多少回收多少，成本效益高；很會畫餅、賣東西。")
+        results.append("<b>【食傷生財】</b> <span class='premise-tag'>【前提條件：2財2食】</span>：用智慧賺錢，常見為生意人，付出多少回收多少，成本效益高；很會畫餅、賣東西。")
 
     if counts["財"] == 2 and counts["官"] == 2:
-        results.append(
-            "<b>【財官雙美】</b> <span class='premise-tag'>【前提條件：2財2官】</span>：喜歡當老大，財會升官，錢越多，別人越看得起；常見為藝人、名人。")
+        results.append("<b>【財官雙美】</b> <span class='premise-tag'>【前提條件：2財2官】</span>：喜歡當老大，財會升官，錢越多，別人越看得起；常見為藝人、名人。")
 
     if counts["官"] == 2:
-        results.append(
-            "<b>【2官】</b>：做事盡心盡力，責任感重，責任心強；管理受約束，對自己要求太高導致壓力大；中規中矩、使命感強、壓力感重。")
+        results.append("<b>【2官】</b>：做事盡心盡力，責任感重，責任心強；管理受約束，對自己要求太高導致壓力大；中規中矩、使命感強、壓力感重。")
     elif counts["官"] >= 3:
-        results.append(
-            "<b>【3官】</b>：膽子小，責任感發揮不出來，很多是因為害怕；男女皆重視外表、愛打扮，外表光鮮但不見得真有錢。")
+        results.append("<b>【3官】</b>：膽子小，責任感發揮不出來，很多是因為害怕；男女皆重視外表、愛打扮，外表光鮮但不見得真有錢。")
 
     if counts["官"] == 2 and counts["印"] == 2:
-        results.append(
-            "<b>【2官2印】</b> <span class='premise-tag'>【前提條件：2官2印】</span>：因官印相生，也喜歡當主管、當老大、中小企業老闆，但不一定有錢；或公務員(職位較高)、軍公教、個人工作室。")
+        results.append("<b>【2官2印】</b> <span class='premise-tag'>【前提條件：2官2印】</span>：因官印相生，也喜歡當主管、當老大、中小企業老闆，但不一定有錢；或公務員(職位較高)、軍公教、個人工作室。")
 
     if counts["官"] == 2 and (counts["比"] in (1, 2)) and counts["財"] == 0:
-        results.append(
-            f"<b>【雙官帶比 (2官{counts['比']}比)】</b> <span class='premise-tag'>【前提條件：2官帶比(2官1比或2官2比)且無財】</span>：好面子、好勝心強、喜出風頭，容易有當老闆的念頭，但沒有財星，所以容易賺不到錢；容易因為追捧而逾越法律界限。")
+        results.append(f"<b>【雙官帶比 (2官{counts['比']}比)】</b> <span class='premise-tag'>【前提條件：2官帶比(2官1比或2官2比)且無財】</span>：好面子、好勝心強、喜出風頭，容易有當老闆的念頭，但沒有財星，所以容易賺不到錢；容易因為追捧而逾越法律界限。")
 
     if counts["印"] >= 1:
         if gender == "女":
@@ -739,8 +609,7 @@ def analyze_special_star_patterns(grid_stars: dict, gender: str) -> list[str]:
 
     return results
 
-
-def get_single_relation(elem1: str, elem2: str) -> tuple[str, str]:
+def get_single_relation(elem1: str, elem2: str) -> Tuple[str, str]:
     if elem1 == elem2:
         return "比和", "⇄"
     if SHENG_MAP.get(elem1) == elem2:
@@ -751,8 +620,7 @@ def get_single_relation(elem1: str, elem2: str) -> tuple[str, str]:
         return "相剋", "➔"
     return "相剋", "⬅"
 
-
-def analyze_all_grid_relations(grid_elements: dict) -> list[dict]:
+def analyze_all_grid_relations(grid_elements: Dict[str, str]) -> List[Dict[str, Any]]:
     grid_abbr = {"天格": "天", "人格": "人", "地格": "地", "外格": "外", "總格": "總"}
     results = []
 
@@ -778,28 +646,12 @@ def analyze_all_grid_relations(grid_elements: dict) -> list[dict]:
         })
     return results
 
-
-def get_gan_zhi_wuxing(num: int) -> tuple[str, str]:
-    GAN_MAP = ["癸", "甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬"]
-    ZHI_MAP = ["亥", "子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌"]
-    GAN_WUXING = {"甲": "木", "乙": "木", "丙": "火", "丁": "火", "戊": "土", "己": "土", "庚": "金", "辛": "金",
-                  "壬": "水", "癸": "水"}
-
-    gan = GAN_MAP[num % 10]
-    zhi = ZHI_MAP[num % 12]
-    wuxing = GAN_WUXING[gan]
-    return f"{wuxing}{gan}{zhi}", wuxing
-
-
-def get_star(base_wuxing: str, target_wuxing: str) -> str:
-    diff = (WUXING_TO_INDEX[target_wuxing] - WUXING_TO_INDEX[base_wuxing]) % 5
-    return STAR_ORDER[diff]
-
-
 # =========================================================
-# 4. Streamlit 主視覺介面
+# 5. 主程式入口 (Streamlit UI)
 # =========================================================
 def main():
+    inject_custom_css()
+
     st.title("🔮 全自動姓名學分析器")
     st.caption("輸入姓名、出生年與性別，自動計算姓名學筆畫、五格干支、五星特殊格局與格局辨性格面相分析")
 
@@ -809,46 +661,45 @@ def main():
 
     col1, col2 = st.columns(2)
     with col1:
-        surname = st.text_input("請輸入姓氏", placeholder="例如：張")
+        surname = st.text_input("請輸入姓氏", placeholder="例如：張", key="input_surname")
     with col2:
-        given_name = st.text_input("請輸入名字", placeholder="例如：三丰")
+        given_name = st.text_input("請輸入名字", placeholder="例如：三丰", key="input_given_name")
 
     col3, col4 = st.columns(2)
     with col3:
-        birth_year = st.text_input("請輸入出生西元年", placeholder="例如：1988 或 1990")
+        birth_year = st.text_input("請輸入出生西元年", placeholder="例如：1988 或 1990", key="input_birth_year")
     with col4:
-        gender = st.radio("請選擇性別", ["男", "女"], horizontal=True)
+        gender = st.radio("請選擇性別", ["男", "女"], horizontal=True, key="input_gender")
 
     if st.button("✨ 開始分析姓名", type="primary", use_container_width=True):
-        surname_clean, given_name_clean = surname.strip(), given_name.strip()
-
-        if not surname_clean or not given_name_clean:
+        s_clean, g_clean = surname.strip(), given_name.strip()
+        if not s_clean or not g_clean:
             st.warning("⚠️ 姓氏與名字皆不能為空！")
-            return
-
-        st.session_state["analyzed"] = True
-        st.session_state["surname"] = surname_clean
-        st.session_state["given_name"] = given_name_clean
-        st.session_state["birth_year"] = birth_year.strip()
-        st.session_state["gender"] = gender
+            st.session_state["analyzed"] = False
+        else:
+            st.session_state["analyzed"] = True
+            st.session_state["surname"] = s_clean
+            st.session_state["given_name"] = g_clean
+            st.session_state["birth_year"] = birth_year.strip()
+            st.session_state["gender"] = gender
 
     if st.session_state.get("analyzed", False):
-        surname = st.session_state["surname"]
-        given_name = st.session_state["given_name"]
-        birth_year_str = st.session_state["birth_year"]
-        gender = st.session_state["gender"]
+        s_val = st.session_state["surname"]
+        g_val = st.session_state["given_name"]
+        by_val = st.session_state["birth_year"]
+        gender_val = st.session_state["gender"]
 
         birth_year_num = None
-        if birth_year_str.isdigit():
-            birth_year_num = int(birth_year_str)
+        if by_val.isdigit():
+            birth_year_num = int(by_val)
             if birth_year_num < 200:
                 birth_year_num += 1911
 
-        full_name = surname + given_name
+        full_name = s_val + g_val
         st.divider()
 
-        surname_strokes = [get_name_stroke_count(c)[0] for c in surname]
-        name_strokes = [get_name_stroke_count(c)[0] for c in given_name]
+        surname_strokes = [get_name_stroke_count(c)[0] for c in s_val]
+        name_strokes = [get_name_stroke_count(c)[0] for c in g_val]
         s_len, n_len = len(surname_strokes), len(name_strokes)
 
         if s_len == 1 and n_len == 2:
@@ -886,8 +737,8 @@ def main():
         tab1, tab2, tab3 = st.tabs(["📊 十字五格五星盤", "🎭 五行格局與性格面相", "✍️ 筆劃解析明細"])
 
         with tab1:
-            year_info = f"｜{birth_year_str}年生" if birth_year_str else ""
-            st.subheader(f"👤 {full_name}（{gender}性｜{name_type}{year_info}）")
+            year_info = f"｜{by_val}年生" if by_val else ""
+            st.subheader(f"👤 {full_name}（{gender_val}性｜{name_type}{year_info}）")
 
             html_content = f"""
             <div class="quadrant-container">
@@ -965,14 +816,14 @@ def main():
                         unsafe_allow_html=True,
                     )
 
-            special_patterns = analyze_special_star_patterns(grid_stars, gender)
+            special_patterns = analyze_special_star_patterns(grid_stars, gender_val)
             if special_patterns:
                 st.markdown("#### 🔮 五星之特殊格局解析")
                 pattern_items_html = "".join(f'<div class="special-item">{p}</div>' for p in special_patterns)
                 st.markdown(
                     f"""
                     <div class="star-pattern-card">
-                        <div class="star-pattern-title">🌌 命中特殊格局與多星傾向 ({gender}性專屬視角)</div>
+                        <div class="star-pattern-title">🌌 命中特殊格局與多星傾向 ({gender_val}性專屬視角)</div>
                         {pattern_items_html}
                     </div>
                     """,
@@ -1029,7 +880,7 @@ def main():
                 )
 
         with tab2:
-            st.markdown("##### 🎭 五行對剋/相生「格局辨性格」與面相對照")
+            st.markdown("##### 🎭 五行對剋格局「格局辨性格」與面相對照")
 
             ext_pattern, ext_type = calculate_pattern(t_wx, r_wx)
             int_pattern, int_type = calculate_pattern(r_wx, d_wx)
@@ -1042,65 +893,52 @@ def main():
                 f"| **雙格局判定**：{'是 (雙' + str(ext_pattern) + ')' if is_double else '否'}"
             )
 
-            st.markdown("##### 🪵🔥⚔️ 五行能量互動機制 (木生火 / 金剋木)")
-            st.markdown(
-                """
-                * **木生火 (木生火 ≦ 金剋木)**：木遇火則生發熱情與行動力，但若格局中有強金剋木，木氣受損，木生火之勢受到壓制，表現為行動力易受外界阻礙或精神壓力增加。
-                * **金剋木**：金性剛硬理性，木性仁慈獨立；金剋木過重時，執行力強但個性易流於嚴苛固執。
-                """
-            )
             st.markdown("---")
 
-            # 輔助渲染外在／內在卡片函式
-            def render_pattern_card(pattern_name, pattern_relation_type, position_label):
+            def render_pattern_card(pattern_name: str, position_label: str):
                 if not pattern_name:
                     return
                 info = PATTERN_DETAILS.get(pattern_name, {})
-                card_cls = "pattern-card-ke" if pattern_relation_type == "剋" else "pattern-card-sheng"
-                title_cls = "pattern-title-ke" if pattern_relation_type == "剋" else "pattern-title-sheng"
-                type_tag = "🔴 相剋" if pattern_relation_type == "剋" else "🟢 相生"
 
                 title_suffix = f"（雙{pattern_name}）" if is_double else ""
 
                 content_html = f"""
-                <div class="{card_cls}">
-                    <div class="{title_cls}">🎴 {position_label}性格格局：{pattern_name} {title_suffix}【{type_tag}】</div>
-                    <p><b>🎯 核心特質</b>：{info.get('core', '無')}</p>
-                    <p><b>👍 優點表現</b>：{info.get('advantage', '無')}</p>
-                    <p><b>⚠️ 缺點／挑戰</b>：{info.get('disadvantage', '無')}</p>
+                <div class="pattern-card-ke">
+                    <div class="pattern-title-ke">🎴 {position_label}格局：{pattern_name} {title_suffix}</div>
+                    <p><b>👍 優點</b>：{info.get('advantage', '無')}</p>
+                    <p><b>👎 缺點</b>：{info.get('disadvantage', '無')}</p>
                 """
-                if position_label == "內在" and "internal_home" in info:
-                    content_html += f"<p><b>🏡 家庭與私下表現</b>：{info['internal_home']}</p>"
-                    content_html += f"<p><b>🧘 內心壓力機制</b>：{info['internal_stress']}</p>"
-                if info.get("face"):
-                    content_html += f"<p><b>👤 對應面相</b>：{info['face']}</p>"
+                if "special_note" in info:
+                    content_html += f"<p><b>⚠️ 特殊格局備註</b>：{info['special_note']}</p>"
+                if "face" in info:
+                    content_html += f"<p><b>👤 面相特徵</b>：<br>{info['face']}</p>"
                 content_html += "</div>"
                 st.markdown(content_html, unsafe_allow_html=True)
 
             if ext_pattern:
-                render_pattern_card(ext_pattern, ext_type, "外在 (天-人)")
+                render_pattern_card(ext_pattern, "外在 (天-人)")
                 if ext_pattern == "水火局":
-                    st.markdown("##### 🌊🔥 水火局延伸分析（看出生年）")
+                    st.markdown("##### 🌊🔥 外在水火局調候機制 (對照「六十納音表」出生年)")
                     if nayin_elem == "木":
-                        st.write("• **出生年為木**：木生火，脾氣與火氣更加旺盛。")
+                        st.warning("• **出生年為木**：木生火，性格可能火氣更大。")
                     elif nayin_elem == "土":
-                        st.write("• **出生年為土**：火生土，脾氣不會發的那麼快，不能溝通者才會發脾氣。")
+                        st.info("• **出生年為土**：火生土，脾氣不會發的那麼快，不能溝通者才會發脾氣。")
                     elif nayin_elem == "水":
-                        st.write("• **出生年為水**：格局中有2水，火被剋掉了，沒脾氣就不會發火了。")
+                        st.success("• **出生年為水**：格局中有2水，火被剋掉了，沒脾氣就不會發火了。")
                     else:
-                        st.write(f"• **出生年為{nayin_elem}**：正常水火相剋能量作用。")
+                        st.write(f"• **出生年為 {nayin_elem}**：一般水火能量推演。")
 
             if int_pattern:
-                render_pattern_card(int_pattern, int_type, "內在 (人-地)")
+                render_pattern_card(int_pattern, "內在 (人-地)")
 
             if not ext_pattern and not int_pattern:
-                st.success("目前天格與人格、人格與地格之間未構成特別對應之五行相生相剋格局。")
+                st.success("目前天格與人格（外在）、人格與地格（內在）之間未構成五行相剋格局。")
 
         with tab3:
             st.markdown("##### ✍️ 漢字姓名學筆劃詳細解析")
 
             records = []
-            for char, role in [(c, "姓氏") for c in surname] + [(c, "名字") for c in given_name]:
+            for char, role in [(c, "姓氏") for c in s_val] + [(c, "名字") for c in g_val]:
                 final_s, base_s, note = get_name_stroke_count(char)
                 records.append({
                     "類別": role,
@@ -1114,11 +952,11 @@ def main():
 
             with st.expander("ℹ️ 關於姓名學筆劃計算規則說明"):
                 st.write(
-                    "本系統筆劃採用傳統姓名學部首校正標準（例如 氵水部以4劃計、艹艸部以6劃計、左阝阜部以14劃計、右阝邑部以12劃計...等）。\n"
-                    "特別說明：『王』字為王部本字，固定計為 4 劃；『玉』字算 5 劃。其餘帶有『𤣩』玉部偏旁之漢字，則進行 +1 劃校正。\n"
-                    "『忄』偏旁以 4 劃計算 (+1劃校正)；但『心』字本體算 4 劃不校正。『成』字固定預設為 7 劃。"
+                    "本系統筆劃採用傳統姓名學部首校正標準：\n"
+                    "• **心部**：『心』字本體算 4 劃；帶有『忄』豎心旁之漢字進行 +1 劃校正（補足心部 4 劃標準）。\n"
+                    "• **其他部首**：氵水部（+1劃）、艹艸部（+3劃）、左阝阜部（+6劃）、右阝邑部（+5劃）...等。\n"
+                    "• **特例字**：『王』字為王部本字固定計 4 劃；『玉』字算 5 劃。其餘帶有『𤣩』玉部偏旁之漢字進行 +1 劃校正。『成』字預設為 7 劃。"
                 )
-
 
 if __name__ == "__main__":
     main()
