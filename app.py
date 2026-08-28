@@ -24,7 +24,7 @@ CHAR_EXCEPTIONS = {
     "黃": (12, " (黃部本字: 12劃)"),
     "玉": (5, " (玉部本字: 原劃數5劃不校正)"),
     "成": (7, " (特例預設: 7劃)"),
-    "悅": (11, " (忄心部偏旁: +1劃校正，計 4劃)"),
+    "悅": (11, " (忄心部偏旁: +1劃校正，計 11劃)"),
 }
 
 WUXING_ORDER = ["木", "火", "土", "金", "水"]
@@ -50,12 +50,22 @@ NAYIN_TABLE = {
 GAN = ["庚", "辛", "壬", "癸", "甲", "乙", "丙", "丁", "戊", "己"]
 ZHI = ["申", "酉", "戌", "亥", "子", "丑", "寅", "卯", "辰", "巳", "午", "未"]
 
-PATTERN_MAP = {
-    frozenset(["金", "木"]): ("金木局", "剋"),
-    frozenset(["水", "火"]): ("水火局", "剋"),
-    frozenset(["火", "金"]): ("火金局", "剋"),
-    frozenset(["木", "土"]): ("木土局", "剋"),
-    frozenset(["土", "水"]): ("土水局", "剋"),
+# 相剋對應格局（不分順序）
+KE_PATTERN_MAP = {
+    frozenset(["金", "木"]): "金木局",
+    frozenset(["水", "火"]): "水火局",
+    frozenset(["火", "金"]): "火金局",
+    frozenset(["木", "土"]): "木土局",
+    frozenset(["土", "水"]): "土水局",
+}
+
+# 相生對應相剋格局（生 ≦ 剋）
+SHENG_TO_KE_MAP = {
+    ("木", "火"): "金木局",
+    ("火", "土"): "水火局",
+    ("土", "金"): "木土局",
+    ("金", "水"): "火金局",
+    ("水", "木"): "土水局",
 }
 
 PATTERN_DETAILS = {
@@ -66,23 +76,19 @@ PATTERN_DETAILS = {
     "水火局": {
         "advantage": "熱心、情緒化、情緒容易上臉，會直接表現出來。",
         "disadvantage": "脾氣不會很好；黑道衝突中水火局者較多。",
-        "face": "<b>招風耳</b>：熱心、個性雞婆、具服務熱忱。<br><b>刀眉</b>：個性強，脾氣差，但可能隨社會、家庭打磨改善。",
     },
     "火金局": {
         "advantage": "個性理性，做事前會考慮多。",
         "disadvantage": "行動慢易錯失機會，不會很快下決定，不了解的人會認為其龜毛。",
-        "face": "<b>單眼皮</b>：不盡人情。<br><b>雙眼皮</b>：感性。",
     },
     "木土局": {
         "advantage": "若都照規矩來，講好後就不會改變。",
         "disadvantage": "正直（固執、不知變通），個性一板一眼，死腦筋，認定的事情不容易改變，照規矩行事。",
         "special_note": "上下（外在與內在）都是木土局者：講不通、難溝通。",
-        "face": "<b>鼻樑直</b>：個性死板，喜歡講場面話。<br><b>鼻樑歪</b>：像政治人物般好講場面話。",
     },
     "土水局": {
         "advantage": "圓融（隨和），樂觀，個性軟，船到橋頭自然直。",
         "disadvantage": "懶、容易喪失自己的立場（不堅持）。",
-        "face": "體態較豐滿、圓潤。",
     }
 }
 
@@ -394,10 +400,10 @@ def get_name_stroke_count(char: str) -> Tuple[int, int, str]:
     elif rad_id == RIGHT_B:
         final_stroke += 5
         note = " (右阝邑部: +5劃)"
-    elif rad_id == "61":  # 心部 (含『心』字本體與『忄』豎心旁)
+    elif rad_id == "61":  # 心部
         if "忄" in char:
             final_stroke += 1
-            note = " (忄心部偏旁: +1劃校正，計 4劃)"
+            note = " (忄心部偏旁: +1劃校正，計 11劃)"
         else:
             note = " (心部字本體: 原劃數不變，計 4劃)"
     else:
@@ -445,10 +451,21 @@ def get_star(base_wuxing: str, target_wuxing: str) -> str:
     diff = (WUXING_TO_INDEX[target_wuxing] - WUXING_TO_INDEX[base_wuxing]) % 5
     return STAR_ORDER[diff]
 
-def calculate_pattern(elem1: str, elem2: str) -> Tuple[Optional[str], Optional[str]]:
+def calculate_pattern_and_relation(elem1: str, elem2: str) -> Tuple[Optional[str], str]:
     if elem1 == elem2:
-        return None, None
-    return PATTERN_MAP.get(frozenset([elem1, elem2]), (None, None))
+        return None, "比和"
+
+    pair = frozenset([elem1, elem2])
+
+    if pair in KE_PATTERN_MAP:
+        return KE_PATTERN_MAP[pair], "剋"
+
+    if (elem1, elem2) in SHENG_TO_KE_MAP:
+        return SHENG_TO_KE_MAP[(elem1, elem2)], "生"
+    if (elem2, elem1) in SHENG_TO_KE_MAP:
+        return SHENG_TO_KE_MAP[(elem2, elem1)], "生"
+
+    return None, "未知"
 
 # =========================================================
 # 4. 分析邏輯模組
@@ -653,7 +670,7 @@ def main():
     inject_custom_css()
 
     st.title("🔮 全自動姓名學分析器")
-    st.caption("輸入姓名、出生年與性別，自動計算姓名學筆畫、五格干支、五星特殊格局與格局辨性格面相分析")
+    st.caption("輸入姓名、出生年與性別，自動計算姓名學筆畫、五格干支、五星特殊格局與五行格局分析")
 
     if not os.path.exists(DB_FILE_NAME):
         st.error(f"⚠️ 找不到資料庫檔案 `{DB_FILE_NAME}`！請確認資料庫已放置於同目錄下。")
@@ -734,7 +751,7 @@ def main():
 
         grid_stars = {"天格": t_star, "人格": "比", "地格": d_star, "外格": w_star, "總格": z_star}
 
-        tab1, tab2, tab3 = st.tabs(["📊 十字五格五星盤", "🎭 五行格局與性格面相", "✍️ 筆劃解析明細"])
+        tab1, tab2, tab3 = st.tabs(["📊 十字五格五星盤", "🎭 五行格局", "✍️ 筆劃解析明細"])
 
         with tab1:
             year_info = f"｜{by_val}年生" if by_val else ""
@@ -880,43 +897,61 @@ def main():
                 )
 
         with tab2:
-            st.markdown("##### 🎭 五行對剋格局「格局辨性格」與面相對照")
+            st.markdown("##### 🎭 五行格局說明")
 
-            ext_pattern, ext_type = calculate_pattern(t_wx, r_wx)
-            int_pattern, int_type = calculate_pattern(r_wx, d_wx)
+            ext_pattern, ext_rel = calculate_pattern_and_relation(t_wx, r_wx)
+            int_pattern, int_rel = calculate_pattern_and_relation(r_wx, d_wx)
+
             is_double = (ext_pattern is not None) and (ext_pattern == int_pattern)
 
             nayin_elem = get_nayin_element(birth_year_num) if birth_year_num else "未提供或無法解析"
 
+            double_info = f"⚠️ 是 (雙{ext_pattern})" if is_double else "否"
             st.info(
                 f"**出生年納音五行**：{birth_year_num if birth_year_num else '未知'} 年（{nayin_elem}） "
-                f"| **雙格局判定**：{'是 (雙' + str(ext_pattern) + ')' if is_double else '否'}"
+                f"| **雙格局判定**：{double_info}"
             )
 
             st.markdown("---")
 
-            def render_pattern_card(pattern_name: str, position_label: str):
+            def render_pattern_card(pattern_name: str, position_label: str, rel_type: str, elem1: str, elem2: str):
                 if not pattern_name:
                     return
+
                 info = PATTERN_DETAILS.get(pattern_name, {})
 
-                title_suffix = f"（雙{pattern_name}）" if is_double else ""
+                if rel_type == "生":
+                    intensity_note = "（相生推導格局，影響效果較相剋稍微溫和）"
+                    type_label = "相生轉化"
+                else:
+                    intensity_note = ""
+                    type_label = "相剋對應"
+
+                title_suffix = f"【雙{pattern_name}】" if is_double else ""
 
                 content_html = f"""
                 <div class="pattern-card-ke">
                     <div class="pattern-title-ke">🎴 {position_label}格局：{pattern_name} {title_suffix}</div>
+                    <p style="color: #555; font-size: 13px; margin-bottom: 8px;">
+                        <b>五行組合</b>：{elem1} 與 {elem2}（{type_label}） <span style="color: #7E57C2;">{intensity_note}</span>
+                    </p>
                     <p><b>👍 優點</b>：{info.get('advantage', '無')}</p>
                     <p><b>👎 缺點</b>：{info.get('disadvantage', '無')}</p>
                 """
+
                 if "special_note" in info:
-                    content_html += f"<p><b>⚠️ 特殊格局備註</b>：{info['special_note']}</p>"
-                if "face" in info:
-                    content_html += f"<p><b>👤 面相特徵</b>：<br>{info['face']}</p>"
+                    content_html += f"<p style='color: #d32f2f;'><b>⚠️ 特殊格局備註</b>：{info['special_note']}</p>"
+
+                if is_double and pattern_name == "木土局":
+                    content_html += f"<p style='color: #c62828;'><b>💥 雙木土局加強提示</b>：上下（外在與內在）皆為木土局，講不通、極難溝通。</p>"
+
                 content_html += "</div>"
+
                 st.markdown(content_html, unsafe_allow_html=True)
 
+            # 外在 (天-人) 格局
             if ext_pattern:
-                render_pattern_card(ext_pattern, "外在 (天-人)")
+                render_pattern_card(ext_pattern, "外在 (天-人)", ext_rel, t_wx, r_wx)
                 if ext_pattern == "水火局":
                     st.markdown("##### 🌊🔥 外在水火局調候機制 (對照「六十納音表」出生年)")
                     if nayin_elem == "木":
@@ -928,11 +963,12 @@ def main():
                     else:
                         st.write(f"• **出生年為 {nayin_elem}**：一般水火能量推演。")
 
+            # 內在 (人-地) 格局
             if int_pattern:
-                render_pattern_card(int_pattern, "內在 (人-地)")
+                render_pattern_card(int_pattern, "內在 (人-地)", int_rel, r_wx, d_wx)
 
             if not ext_pattern and not int_pattern:
-                st.success("目前天格與人格（外在）、人格與地格（內在）之間未構成五行相剋格局。")
+                st.success("目前格局組合未構成對應之五行格局說明。")
 
         with tab3:
             st.markdown("##### ✍️ 漢字姓名學筆劃詳細解析")
